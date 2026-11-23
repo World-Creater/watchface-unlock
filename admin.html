@@ -59,6 +59,8 @@
     </div>
     <div id="list"></div>
   </div>
+
+  <div class="muted" style="text-align:center;margin-top:6px">后台 v3</div>
 </div>
 
 <script src="config.js"></script>
@@ -132,8 +134,10 @@
       gate.classList.add("hide");
       panel.classList.remove("hide");
       render(j.items);
+      document.getElementById("login").disabled = false;
     }).catch(function (e) {
-      if (e.status === 401) { logout(); document.getElementById("gateErr").textContent = "密码不对"; return; }
+      document.getElementById("login").disabled = false;
+      if (e.status === 401) { logout(); document.getElementById("gateErr").style.color = ""; document.getElementById("gateErr").textContent = "密码不对"; return; }
       var msg = e.message || "未知错误";
       if (e.detail) msg += " · " + e.detail;
       document.getElementById("gateErr").textContent = "登录失败：" + msg;
@@ -174,7 +178,10 @@
     pw = document.getElementById("pw").value.trim();
     if (!pw) return;
     localStorage.setItem("unlock_admin_pw", pw);
-    document.getElementById("gateErr").textContent = "";
+    var err = document.getElementById("gateErr");
+    err.style.color = "#6b7280";
+    err.textContent = "登录中…";
+    document.getElementById("login").disabled = true;
     load();
   };
   document.getElementById("pw").addEventListener("keydown", function (e) {
