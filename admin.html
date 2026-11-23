@@ -75,15 +75,26 @@
   var countEl = document.getElementById("count");
 
   function post(path, body) {
+    var full = (API || "(config.js 里没有填地址)") + path;
     return fetch(API + path, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body)
     }).then(function (r) {
-      return r.json().then(function (j) {
-        if (!r.ok) { var e = new Error(j.error || ("HTTP " + r.status)); e.status = r.status; throw e; }
+      return r.text().then(function (t) {
+        var j = null;
+        try { j = JSON.parse(t); } catch (x) { j = null; }
+        if (!r.ok) {
+          var e = new Error((j && j.error) || ("HTTP " + r.status));
+          e.status = r.status;
+          e.detail = j && j.detail;
+          throw e;
+        }
+        if (!j) { throw new Error("服务器返回了非 JSON 内容：" + String(t).slice(0, 120)); }
         return j;
       });
+    }, function (err) {
+      throw new Error("连不上 " + full + " —— " + (err && err.message ? err.message : String(err)));
     });
   }
 
@@ -116,14 +127,16 @@
   }
 
   function load() {
-    if (!API) { countEl.textContent = "未配置后端地址"; return; }
+    if (!API) { document.getElementById("gateErr").textContent = "config.js 里没有配置后端地址"; return; }
     post("/api/admin/list", { password: pw }).then(function (j) {
       gate.classList.add("hide");
       panel.classList.remove("hide");
       render(j.items);
     }).catch(function (e) {
-      if (e.status === 401) { logout(); document.getElementById("gateErr").textContent = "密码不对"; }
-      else { countEl.textContent = e.message; }
+      if (e.status === 401) { logout(); document.getElementById("gateErr").textContent = "密码不对"; return; }
+      var msg = e.message || "未知错误";
+      if (e.detail) msg += " · " + e.detail;
+      document.getElementById("gateErr").textContent = "登录失败：" + msg;
     });
   }
 
