@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表盘解锁 · 自助领取解锁码</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --ink: #16181d; --dim: #6b7280;
+    --line: #e3e6ea; --accent: #1f7a3f; --accent-soft: #e8f3ec; --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px 16px 40px; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 460px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; margin-bottom: 14px;
+  }
+  label { display: block; font-size: 13px; color: var(--dim); margin: 14px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  input[type=text] {
+    width: 100%; padding: 12px 12px; font-size: 16px; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px; background: #fbfbfc;
+    font-family: ui-monospace, Consolas, monospace; letter-spacing: .5px;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .seg { display: flex; gap: 8px; }
+  .seg label {
+    flex: 1; margin: 0; padding: 12px 8px; text-align: center; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 10px; color: var(--ink);
+    font-size: 14px; background: #fbfbfc;
+  }
+  .seg input { display: none; }
+  .seg input:checked + span { color: var(--accent); font-weight: 600; }
+  .seg label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  button {
+    width: 100%; padding: 13px; font-size: 16px; font-weight: 600; color: #fff;
+    background: var(--accent); border: 0; border-radius: 10px; cursor: pointer;
+    margin-top: 18px;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  .ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .hint { font-size: 12px; color: var(--dim); margin-top: 8px; }
+  .status { display: none; }
+  .status.show { display: block; }
+  .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); margin: 4px 0; }
+  .row b { color: var(--ink); font-weight: 500; }
+  .code {
+    font: 700 30px/1.2 ui-monospace, Consolas, monospace; letter-spacing: 3px;
+    color: var(--accent); text-align: center; padding: 14px 0 6px;
+    word-break: break-all;
+  }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+  .err { color: #b91c1c; font-size: 14px; margin-top: 10px; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--dim); }
+  details p { font-size: 13px; color: var(--dim); margin: 8px 0 0; }
+  ol { font-size: 13px; color: var(--dim); padding-left: 18px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>表盘解锁</h1>
+  <div class="sub">付款后在这里自助领取解锁码，不用等卖家回复。</div>
+
+  <form class="card" id="form">
+    <label>买的哪个表盘</label>
+    <div class="seg">
+      <label><input type="radio" name="product" value="VS" checked><span>VISION</span></label>
+      <label><input type="radio" name="product" value="SP"><span>Summit</span></label>
+    </div>
+
+    <label>订单号</label>
+    <input type="text" id="order" placeholder="闲鱼订单号" autocomplete="off" inputmode="text">
+
+    <label>设备 ID</label>
+    <input type="text" id="device" placeholder="例如 R993168099" autocomplete="off" inputmode="text">
+    <div class="hint">表盘 → 设置 → 拉到最下面「设备 ID」</div>
+
+    <button type="submit" id="submit">获取解锁码</button>
+    <div class="err" id="err"></div>
+  </form>
+
+  <div class="card status" id="status">
+    <div class="row"><span>状态</span><span id="state"></span></div>
+    <div class="row"><span>产品</span><b id="pname"></b></div>
+    <div class="row"><span>设备 ID</span><b id="did"></b></div>
+    <div id="result"></div>
+    <button class="ghost" id="again" style="display:none">再领一个</button>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>设备 ID 在哪看？</summary>
+      <ol>
+        <li>手表上进入表盘</li>
+        <li>打开表盘的设置页（长按中键 / 菜单 → 设置）</li>
+        <li>拉到最下面，会显示「设备 ID」，形如 <code>R993168099</code></li>
+      </ol>
+      <p>试用到期提示页上也会显示这个 ID。</p>
+    </details>
+    <details>
+      <summary>一个订单能解锁几台表？</summary>
+      <p>一台。换表要另外购买；填错设备 ID 可以联系卖家退回重填。</p>
+    </details>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var API = (window.API_BASE || "").replace(/\/+$/, "");
+  var form = document.getElementById("form");
+  var err = document.getElementById("err");
+  var submit = document.getElementById("submit");
+  var statusCard = document.getElementById("status");
+  var stateEl = document.getElementById("state");
+  var pnameEl = document.getElementById("pname");
+  var didEl = document.getElementById("did");
+  var resultEl = document.getElementById("result");
+  var againBtn = document.getElementById("again");
+  var timer = null;
+  var NAMES = { VS: "VISION", SP: "Summit" };
+
+  function showErr(msg) { err.textContent = msg || ""; }
+
+  function api(path, body) {
+    return fetch(API + path, {
+      method: body ? "POST" : "GET",
+      headers: { "content-type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+        return j;
+      });
+    });
+  }
+
+  function setStatus(text, cls) {
+    stateEl.innerHTML = cls === "wait"
+      ? '<span class="dot"></span>' + text
+      : text;
+  }
+
+  function showCode(code) {
+    resultEl.innerHTML = '<div class="code">' + code + "</div>" +
+      '<button class="ghost" id="copy">复制解锁码</button>' +
+      '<div class="hint">回到表盘设置页，把解锁码填进「解锁码」那一行即可。</div>';
+    document.getElementById("copy").onclick = function () {
+      navigator.clipboard && navigator.clipboard.writeText(code);
+      this.textContent = "已复制";
+    };
+    againBtn.style.display = "block";
+    setStatus("已通过");
+    stopPolling();
+  }
+
+  function poll(id) {
+    api("/api/status?id=" + encodeURIComponent(id)).then(function (j) {
+      if (j.status === "approved" && j.code) {
+        showCode(j.code);
+      } else if (j.status === "rejected") {
+        setStatus("未通过");
+        resultEl.innerHTML = '<div class="err">卖家没有通过这一单，请通过购买渠道联系卖家。</div>';
+        stopPolling();
+      }
+    }).catch(function (e) {
+      if (String(e.message).indexOf("不存在") >= 0) {
+        setStatus("已过期");
+        stopPolling();
+      }
+    });
+  }
+
+  function stopPolling() { if (timer) { clearInterval(timer); timer = null; } }
+
+  function startPolling(id) {
+    stopPolling();
+    timer = setInterval(function () { poll(id); }, 3000);
+    poll(id);
+  }
+
+  form.onsubmit = function (ev) {
+    ev.preventDefault();
+    showErr("");
+    if (!API) { showErr("页面还没配置后端地址，请联系卖家。"); return; }
+
+    var product = form.querySelector('input[name=product]:checked').value;
+    var order = document.getElementById("order").value.trim();
+    var device = document.getElementById("device").value.trim().toUpperCase();
+    if (!order) { showErr("请填写订单号"); return; }
+    if (!/^[0-9A-Z]{7,32}$/.test(device)) { showErr("设备 ID 应为 7-32 位字母数字，例如 R993168099"); return; }
+
+    submit.disabled = true;
+    submit.textContent = "提交中…";
+    api("/api/claim", { product: product, order: order, deviceId: device })
+      .then(function (j) {
+        localStorage.setItem("unlock_req", j.id);
+        statusCard.classList.add("show");
+        pnameEl.textContent = NAMES[product] || product;
+        didEl.textContent = device;
+        if (j.status === "approved" && j.code) {
+          showCode(j.code);
+        } else {
+          setStatus("等待卖家确认", "wait");
+          resultEl.innerHTML = '<div class="hint">已经通知卖家，通常几分钟内通过。这个页面不用关，通过后会自动显示解锁码。</div>';
+          startPolling(j.id);
+        }
+      })
+      .catch(function (e) { showErr(e.message); })
+      .finally(function () {
+        submit.disabled = false;
+        submit.textContent = "获取解锁码";
+      });
+  };
+
+  againBtn.onclick = function () {
+    stopPolling();
+    localStorage.removeItem("unlock_req");
+    statusCard.classList.remove("show");
+    resultEl.innerHTML = "";
+    againBtn.style.display = "none";
+    document.getElementById("order").value = "";
+    document.getElementById("device").value = "";
+    showErr("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // 刷新页面后接着等
+  var saved = localStorage.getItem("unlock_req");
+  if (saved) {
+    statusCard.classList.add("show");
+    setStatus("等待卖家确认", "wait");
+    startPolling(saved);
+  }
+})();
+</script>
+</body>
+</html>
